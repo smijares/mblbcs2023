@@ -1,43 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Plantilla d'entrenament de models de xarxes neurals
-V7.5
+mblbcs2022 main script
+V1.0
 Sebastià Mijares i Verdú - GICI, UAB
 sebastia.mijares@uab.cat
 
-Implementació d'entrenament de model de xarxes neurals i proves de compressió.
+Core script to replicate the results described in the "Multiband deep learning
+models for hyperspectral remote sensing images compression" paper by Sebastià
+Mijares i Verdú, Valero Laparra, Johannes Ballé, Joan Bartrina-Rapesta, Miguel
+Hernández-Cabronero, and Joan Serra-Sagristà, submitted for publication in the
+IEEE Geoscience and Remote Sensing Letters journal in July 2022.
 
-Compatible amb xarxes convolucionals 2D i convolucionals 1D+2D.
+This script automates processes to be run by the architecture script to train
+new models or test existing ones. Run 'python3 MAIN.py -h' for help on how to
+use this script.
 
-Com utilitzar aquest codi
--------------------------
+Required libraries
+------------------
 
-Executar acompanyat dels mòduls requerits i indicant els paràmetres desitjats a
-les comandes. La comanda 'train' entrena un model de xarxa neural. La comanda
-'test' el prova sobre totes les imatges d'un repositori. La geometria de les
-imatges dels repositoris es carrega automàticament.
-
-Paràmetres
-----------
-
-No hi ha paràmetres generals hard-coded.
-
-Requisits
----------
-
--Mòdul argparse
--Mòdul glob
--Mòdul sys
--Mòdul absl
--Mòdul os
--Mòdul numpy
--Mòdul math
--Mòdul random
--Mòdul PIL
-
-Desenvolupament
----------------
+argparse
+glob
+sys
+absl
+os
+numpy
+math
+random
+PIL
+time
+tensorflow
 
 """
 
@@ -69,14 +61,6 @@ def ms_ssim(X, Y, height=512, width=680, bands=224, endianess = 1, data_type = t
     x = read_raw(X,height,width,bands,endianess,data_type)
     x_hat = read_raw(Y,height,width,bands,endianess,data_type)
     return np.array(tf.squeeze(tf.image.ssim_multiscale(x, x_hat, maxval)))
-
-def sam(X, Y, height=512, width=680, bands=224, endianess = 1, data_type = tf.uint16):
-    """
-    Function imported from metrics v2.1.
-    """
-    x = tf.cast(read_raw(X,height,width,bands,endianess,data_type),tf.float32)
-    x_hat = tf.cast(read_raw(Y,height,width,bands,endianess,data_type),tf.float32)
-    return np.array(tf.reduce_mean(tf.acos(tf.reduce_sum(x*x_hat,axis=2)/tf.sqrt(tf.reduce_sum(x*x,axis=2)*tf.reduce_sum(x_hat*x_hat,axis=2)))))
 
 def get_geometry_dataset(directory):
     D = os.listdir(directory)
@@ -152,49 +136,24 @@ def run_training(args):
     print('Training ended on '+time.asctime(time.localtime()))
     if not args.autotest == None:
         print('Running automatic testing of model on '+args.autotest[0]+' dataset')
-        if len(args.autotest)>1:
-            for i in args.autotest[1:]:
-                test(args, dataset=args.autotest[0], qual=i)
-            full_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_results.csv','w')
-            lines = []
-            for qual in args.autotest[1:]:
-                partial_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_qual-'+str(qual)+'_results.csv','r')
-                if qual == args.autotest[1:][1]:
-                    lines += partial_results.readlines()
-                else:
-                    lines += partial_results.readlines()[1:]
-                os.system('rm '+full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_qual-'+str(qual)+'_results.csv')
-            for line in lines:
-                full_results.write(line)
-            full_results.close()
-        else:
-            test(args, dataset=args.autotest[0])
+        test(args, dataset=args.autotest[0])
         print('Testing ended on '+time.asctime(time.localtime()))
     
-def test(args,dataset=None,qual=None):
+def test(args,dataset=None):
     print('Delaying for '+str(args.delay)+' seconds...')
     time.sleep(args.delay)
-    if not qual == None and float(qual) == int(float(qual)):
-        qual = int(qual)
     if dataset==None:
         dataset=args.dataset
     try:
     	corpus = random.sample(os.listdir('../datasets/'+dataset),args.sample)
     except:
     	corpus = os.listdir('../datasets/'+dataset)
-    if qual == None:
-        results = open(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_results.csv','w')
-    else:
-        results = open(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_qual-'+str(qual)+'_results.csv','w')
+    results = open(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_results.csv','w')
     results.write('Image,')
-    if not qual == None:
-        results.write('Quality parameter,')
     results.write('TFCI size,Rate (bps),MSE')
     try:
         if args.SSIM:
             results.write(',MS-SSIM')
-        if args.SAM:
-            results.write(',SAM (radians)')
         if args.MAE:
             results.write(',MAE')
         if args.PAE:
@@ -204,12 +163,8 @@ def test(args,dataset=None,qual=None):
     results.write ('\n')
     bands, width, height, endianess, datatype = get_geometry_dataset('../datasets/'+dataset)
     
-    if qual==None:
-        print('Compressing...')
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+dataset+'/*.'+args.extension+'"')
-    else:
-        print('Compressing...')
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+dataset+'/*.'+args.extension+'" --quality '+str(qual))
+    print('Compressing...')
+    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+dataset+'/*.'+args.extension+'"')
     print('Decompressing...')
     os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' decompress "'+'../datasets/'+dataset+'/*.'+args.extension+'.tfci"')
 
@@ -249,8 +204,6 @@ def test(args,dataset=None,qual=None):
             bands, width, height, endianess, datatype = get_geometry_file(IMAGE)
             path_to_image = '../datasets/'+dataset+'/'+IMAGE
             results.write(IMAGE+',')
-            if not qual == None:
-                results.write(str(qual)+',')
             tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.raw.tfci'
             raw_tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.raw.tfci.raw'
             compressed_size = os.stat(tfci_path_to_image)[6]
@@ -268,9 +221,6 @@ def test(args,dataset=None,qual=None):
                         maxval = np.max(img0)
                     ssim = ms_ssim(path_to_image, raw_tfci_path_to_image, height=int(height), bands=int(bands), width=int(width), endianess=int(endianess), data_type=D, maxval=maxval)
                     results.write(','+str(ssim))
-                if args.SAM:
-                    sam_res = sam(path_to_image, raw_tfci_path_to_image, height=int(height), bands=int(bands), width=int(width), endianess=int(endianess), data_type=D)
-                    results.write(','+str(sam_res))
                 if args.MAE:
                     mae = np.mean(abs(img0-img1))
                     results.write(','+str(mae))
@@ -282,122 +232,13 @@ def test(args,dataset=None,qual=None):
             if datatype in '12' and IMAGE==sanity_check:
                 IMG0 = Image.fromarray(img0[0,:,:].astype(D))
                 IMG1 = Image.fromarray(img1[0,:,:].astype(D))
-                IMG0.save(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_org_'+sanity_check[:-4]+'_quality-'+str(qual)+'.png')
-                IMG1.save(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_new_'+sanity_check[:-4]+'_quality-'+str(qual)+'.png')
-                os.system('cp '+path_to_image+' ./')
-                os.system('mv ./'+sanity_check+' sanity-check.raw')
-                os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Encoder -i "./sanity-check.raw" -ig '+bands+' '+height+' '+width+' '+datatype+' 0 '+str(8*int(datatype))+' '+endianess+' 0 0 -r '+str(bps)+' -f 1')
-                os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Decoder -i "./sanity-check.jpc" -og '+datatype+' '+endianess+' 0 -o "./sanity-check.jpc.raw"')
-                jpg2k = Image.fromarray(np.reshape(np.fromfile('./sanity-check.jpc.raw',dtype=D),(int(bands),int(height),int(width)))[0,:,:])
-                jpg2k.save(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_JPEG2000_'+sanity_check[:-4]+'_quality-'+str(qual)+'.png')
-                os.system('rm ./sanity-check.raw')
-                os.system('rm ./sanity-check.jpc')
-                os.system('rm ./sanity-check.jpc.raw')
+                IMG0.save(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_org_'+sanity_check[:-4]+'.png')
+                IMG1.save(full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_new_'+sanity_check[:-4]+'.png')
 
             os.system('rm '+tfci_path_to_image)
             os.system('rm '+raw_tfci_path_to_image)
             results.write('\n')
-        elif os.path.splitext(IMAGE)[1] == '.png' and args.extension == 'png':
-            path_to_image = '../datasets/'+dataset+'/'+IMAGE
-            results.write(IMAGE+',')
-            tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.png.tfci'
-            png_tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.png.tfci.png'
-            compressed_size = os.stat(tfci_path_to_image)[6]
-            img0 = np.asarray(Image.open(path_to_image)).astype(np.float32)
-            img1 = np.asarray(Image.open(png_tfci_path_to_image)).astype(np.float32)
-            mse = np.mean((img0-img1)**2)
-            bps = compressed_size*8/(img0.size)
-            results.write(str(compressed_size)+','+str(bps)+','+str(mse))
-            if args.MAE:
-                mae = np.mean(abs(img0-img1))
-                results.write(','+str(mae))
-            if not IMAGE==sanity_check:
-                os.system('rm '+png_tfci_path_to_image)
-            os.system('rm '+tfci_path_to_image)
-            results.write('\n')
-            os.system('mv '+'../datasets/'+dataset+'/'+sanity_check+' '+full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_org.png')
-            os.system('mv '+'../datasets/'+dataset+'/'+sanity_check+'.tfci.png '+full_model_path(args)+'/'+args.model_path+'_'+dataset+'_sanity-check_new.png')
     results.close()
-    
-def visualise(args):
-    print('Delaying for '+str(args.delay)+' seconds...')
-    time.sleep(args.delay)
-    if not args.quality == None and float(args.quality) == int(float(args.quality)):
-        args.quality = int(args.quality)
-    corpus = random.sample(os.listdir('../datasets/'+args.dataset),args.sample)    
-    if args.quality==None:
-        print('Compressing...')
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+args.dataset+'/*.'+args.extension+'"')
-    else:
-        print('Compressing...')
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+args.dataset+'/*.'+args.extension+'" --quality '+str(args.quality))
-    print('Decompressing...')
-    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' decompress "'+'../datasets/'+args.dataset+'/*.'+args.extension+'.tfci"')
-    for IMAGE in corpus:
-        print('Recovering image '+IMAGE)
-        if os.path.splitext(IMAGE)[1] == '.raw' and args.extension == 'raw':
-            bands, width, height, endianess, datatype = get_geometry_file(IMAGE)
-            
-            if datatype == '0':
-                D = np.bool_
-            elif datatype == '1':
-                D = np.uint8
-            elif datatype == '2':
-                D = np.uint16
-            elif datatype == '3':
-                D = np.int16
-            elif datatype == '4':
-                D = np.int32
-            elif datatype == '5':
-                D = np.int64
-            elif datatype == '6':
-                D = np.float32
-            else:
-                D = np.float64
-            
-            path_to_image = '../datasets/'+args.dataset+'/'+IMAGE
-            tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.raw.tfci'
-            raw_tfci_path_to_image = os.path.splitext(path_to_image)[0]+'.raw.tfci.raw'
-            if args.keep_originals:
-                img0 = np.reshape(np.fromfile(path_to_image,dtype=D),(int(bands),int(height),int(width)))
-            img1 = np.reshape(np.fromfile(raw_tfci_path_to_image,dtype=D),(int(bands),int(height),int(width)))
-            if args.all_bands:
-                for b in range(int(bands)):
-                    IMG1 = Image.fromarray(img1[b,:,:])
-                    IMG1.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_model-reconstruction_quality-'+str(args.quality)+'_band-'+str(b)+'.png')
-                    if args.keep_originals:
-                        IMG0 = Image.fromarray(img0[b,:,:])
-                        IMG0.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_original_band-'+str(b)+'.png')
-                    if args.keep_JPEG2000:
-                        bps = os.stat(tfci_path_to_image)[6]*8/(img1.size)
-                        os.system('cp '+path_to_image+' ./')
-                        os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Encoder -i "./'+IMAGE+'" -ig '+bands+' '+height+' '+width+' '+datatype+' 0 '+str(8*int(datatype))+' '+endianess+' 0 0 -r '+str(bps)+' -f 1')
-                        os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Decoder -i "./'+IMAGE[:-4]+'.jpc" -og '+datatype+' '+endianess+' 0 -o "./'+IMAGE[:-4]+'.jpc.raw"')
-                        jpg2k = Image.fromarray(np.reshape(np.fromfile('./'+IMAGE[:-4]+'.jpc.raw',dtype=D),(int(bands),int(height),int(width)))[0,:,:])
-                        jpg2k.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_JPEG2000-reconstruction_quality-'+str(args.quality)+'.png')
-                        os.system('rm ./'+IMAGE)
-                        os.system('rm ./'+IMAGE[:-4]+'.jpc')
-                        os.system('rm ./'+IMAGE[:-4]+'.jpc.raw')
-
-            else:
-                b = random.randint(0,int(bands)-1)
-                IMG1 = Image.fromarray(img1[b,:,:])
-                IMG1.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_model-reconstruction_quality-'+str(args.quality)+'.png')
-                if args.keep_originals:
-                    IMG0 = Image.fromarray(img0[b,:,:])
-                    IMG0.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_original.png')
-                if args.keep_JPEG2000:
-                    bps = os.stat(tfci_path_to_image)[6]*8/(img1.size)
-                    os.system('cp '+path_to_image+' ./')
-                    os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Encoder -i "./'+IMAGE+'" -ig '+bands+' '+height+' '+width+' '+datatype+' 0 '+str(8*int(datatype))+' '+endianess+' 0 0 -r '+str(bps)+' -f 1')
-                    os.system('java -Xmx4096m -classpath ../BOI/dist/boi.jar boi.Decoder -i "./'+IMAGE[:-4]+'.jpc" -og '+datatype+' '+endianess+' 0 -o "./'+IMAGE[:-4]+'.jpc.raw"')
-                    jpg2k = Image.fromarray(np.reshape(np.fromfile('./'+IMAGE[:-4]+'.jpc.raw',dtype=D),(int(bands),int(height),int(width)))[0,:,:])
-                    jpg2k.save(full_model_path(args)+'/'+args.model_path+'_'+IMAGE[:-4]+'_JPEG2000-reconstruction_quality-'+str(args.quality)+'.png')
-                    os.system('rm ./'+IMAGE)
-                    os.system('rm ./'+IMAGE[:-4]+'.jpc')
-                    os.system('rm ./'+IMAGE[:-4]+'.jpc.raw')
-
-            os.system('rm ../datasets/'+args.dataset+'/*.tfci*')
 
 def parse_args(argv):
   """Parses command line arguments."""
@@ -487,8 +328,7 @@ def parse_args(argv):
   train_cmd.add_argument(
       "--autotest", nargs='+', default= None,
       help="Run testing automatically at the end of training. It will use the dataset "
-      "indicated in this option, as well as the quality parameters indicated after it. "
-      "Example usage: --autotest some-data-testset 1 2 4")
+      "indicated in this option.")
 
     # 'test' subcommand.
   test_cmd = subparsers.add_parser(
@@ -505,14 +345,8 @@ def parse_args(argv):
         "--sample", type=int,
         help="Maximum sample size.")
   test_cmd.add_argument(
-        "--quality", type=float, nargs="+", default=None,
-        help="Quality parameters to be used (n>0 floats or integers) in testing. They will be all written in a single results file while saving multiple sanity check images.")
-  test_cmd.add_argument(
         "--SSIM", action="store_true",
         help="Computes MS-SSIM distortion.")
-  test_cmd.add_argument(
-        "--SAM", action="store_true",
-        help="Computes Spectral Angle Mapper (SAM) distortion.")
   test_cmd.add_argument(
         "--MAE", action="store_true",
         help="Computes Mean Absolute Error (MAE, L1 norm) distortion.")
@@ -520,32 +354,10 @@ def parse_args(argv):
         "--PAE", action="store_true",
         help="Computes Peak Absolute Error (PAE, L-infinity norm) distortion.")
   
-  visualise_cmd = subparsers.add_parser(
-      "visualise",
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-      description="Applies a trained model on a random image (or sample) from a dataset"
-                  "and saves a visual example in the model's folder.")
 
-  # Arguments for test command.
-  visualise_cmd.add_argument(
-        "--dataset", type=str, default="LandSat8_cropRGB",
-        help="Source dataset. Its geometry will be automatically loaded.")
-  visualise_cmd.add_argument(
-        "--sample", type=int, default=1,
-        help="Maximum sample size.")
-  visualise_cmd.add_argument(
-        "--quality", type=float,  default=None,
-        help="Quality parameter to be used in compression. Only one parameter.")
-  visualise_cmd.add_argument(
-        "--keep_originals", action="store_true",
-        help="Save the original image as well as the model's reconstruction to be visualised.")
-  visualise_cmd.add_argument(
-        "--keep_JPEG2000", action="store_true",
-        help="Save the JPEG 2000 reconstruction as well as the model's reconstruction to be visualised.")
-  visualise_cmd.add_argument(
-        "--all_bands", action="store_true",
-        help="Save visualisations from all bands in the image. If false, only saves a single band chosen at random.")
 
+
+  
   # Parse arguments.
   args = parser.parse_args(argv[1:])
   if args.command is None:
@@ -561,26 +373,7 @@ def main(args):
   if args.command == "train":
     run_training(args)
   elif args.command == "test":
-    if args.quality:
-        for i in args.quality:
-            test(args,qual=i)
-        full_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.dataset+'_results.csv','w')
-        lines = []
-        for qual in args.quality:
-            partial_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.dataset+'_qual-'+str(qual)+'_results.csv','r')
-            if qual == args.quality[0]:
-                lines += partial_results.readlines()
-            else:
-                lines += partial_results.readlines()[1:]
-            os.system('rm '+full_model_path(args)+'/'+args.model_path+'_'+args.dataset+'_qual-'+str(qual)+'_results.csv')
-        for line in lines:
-            full_results.write(line)
-        full_results.close()
-        
-    else:
-      test(args)
-  elif args.command == "visualise":
-      visualise(args)
+    test(args)
 
 if __name__ == "__main__":
   app.run(main, flags_parser=parse_args)
