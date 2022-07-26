@@ -5,7 +5,8 @@ In this repository you will find the architecture developed for the paper, the m
 ## How to replicate our results
 The MAIN.py script simplifies the training and testing of networks. In the [GICI webpage](http://gici.uab.cat/GiciWebPage/datasets.php) you can find the test sets we used for AVIRIS and Hyperion data stored in our format (16-bit unsigned integers in raw format). You will also find our pre-trained models in that site. Download these and use the following directory structure:
 
-```parent
+```
+parent
 ├── mblbcs2022
 ├── models
 │     ├── AVIRIS_1band_1
@@ -26,7 +27,8 @@ The MAIN.py script simplifies the training and testing of networks. In the [GICI
 │     └── Hyperion_3band_4
 └── datasets
       ├── AVIRIS_test
-      └── Hyperion_test```
+      └── Hyperion_test
+```
 
 The following command is an example of a test of a model:
 `python3 MAIN.py --input_bands 1 --model_path AVIRIS_1band_2 test --dataset AVIRIS_test`
@@ -35,12 +37,14 @@ Observe that, if the input images have more bands than indicated in `--input_ban
 ## How to train a model from scratch
 As described before, use the MAIN.py script with the following directory structure.
 
-```parent
+```
+parent
 ├── mblbcs2022
 ├── models
 │     └── ...
 └── datasets
-      └── ...```
+      └── ...
+```
 
 For example you may train a model as:
 `python3 MAIN.py --input_bands 1 --model_path my-model test --dataset AVIRIS_training --epochs 100 --steps_per_epoch 1000 --lambda 0.0001 --num_filters 64 384 --patchsize 256`
