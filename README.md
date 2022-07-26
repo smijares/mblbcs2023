@@ -6,26 +6,26 @@ In this repository you will find the architecture developed for the paper, the m
 The MAIN.py script simplifies the training and testing of networks. In the [GICI webpage](http://gici.uab.cat/GiciWebPage/datasets.php) you can find the test sets we used for AVIRIS and Hyperion data stored in our format (16-bit unsigned integers in raw format). You will also find our pre-trained models in that site. Download these and use the following directory structure:
 
 parent
-|-- mblbcs2022
-|-- models
-|     |-- AVIRIS_1band_1
-|     |-- AVIRIS_1band_2
-|     |-- AVIRIS_1band_3
-|     |-- AVIRIS_1band_4
-|     |-- AVIRIS_3band_1
-|     |-- AVIRIS_3band_2
-|     |-- AVIRIS_3band_3
-|     |-- AVIRIS_3band_4
-|     |-- Hyperion_1band_1
-|     |-- Hyperion_1band_2
-|     |-- Hyperion_1band_3
-|     |-- Hyperion_1band_4
-|     |-- Hyperion_3band_1
-|     |-- Hyperion_3band_2
-|     |-- Hyperion_3band_3
-|     └── Hyperion_3band_4
+├── mblbcs2022
+├── models
+│     ├── AVIRIS_1band_1
+│     ├── AVIRIS_1band_2
+│     ├── AVIRIS_1band_3
+│     ├── AVIRIS_1band_4
+│     ├── AVIRIS_3band_1
+│     ├── AVIRIS_3band_2
+│     ├── AVIRIS_3band_3
+│     ├── AVIRIS_3band_4
+│     ├── Hyperion_1band_1
+│     ├── Hyperion_1band_2
+│     ├── Hyperion_1band_3
+│     ├── Hyperion_1band_4
+│     ├── Hyperion_3band_1
+│     ├── Hyperion_3band_2
+│     ├── Hyperion_3band_3
+│     └── Hyperion_3band_4
 └── datasets
-      |-- AVIRIS_test
+      ├── AVIRIS_test
       └── Hyperion_test
 
 The following command is an example of a test of a model:
