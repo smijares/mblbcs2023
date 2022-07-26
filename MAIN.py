@@ -97,21 +97,7 @@ def full_model_path(args):
     return '../models/'+args.model_path
     
 def baseline_path(args):
-    subarchitecture = 'miscellaneous-architectures'
-    if args.architecture[0:4] == 'NLTC':
-        subarchitecture = 'non-linear'
-    elif args.architecture[0:4] == 'LLTC':
-        subarchitecture = 'linear-learned'
-    elif args.architecture[0:4] == 'IMIC':
-        subarchitecture = 'importance-map'
-    elif args.architecture[0:4] == 'DFLC':
-        subarchitecture = 'defined-features'
-    elif args.architecture[0:4] == 'CSMR':
-        subarchitecture = 'multi-rate-CS'
-    elif args.architecture[0:4] == 'MDAE':
-        subarchitecture = 'modulated-AE'
-
-    return './'+subarchitecture+'/'+args.architecture+'.py'
+    return './'+args.architecture+'.py'
 
 def list_command(L):
     """
@@ -126,17 +112,23 @@ def run_training(args):
     print('Delaying for '+str(args.delay)+' seconds...')
     time.sleep(args.delay)
     bands, width, height, endianess, datatype = get_geometry_dataset(dataset_path(args))
+    
+    if int(bands) > args.input_bands:
+        print('Auxiliary training set needed')
+        dataset_p = dataset_path(args)+'_aux'
+        if not os.path.isdir(dataset_path(args)+'_aux'):
+            print('Generating auxiliary training set')
+            os.system('python3 ./auxiliary/bands_extractor.py --source '+dataset_path(args)+' --destination '+dataset_path(args)+'_aux --consecutive_bands '+str(args.input_bands))
+    else:
+        dataset_p = dataset_path(args)
     if not os.path.isdir(full_model_path(args)):
         os.mkdir(full_model_path(args))
         os.mkdir(full_model_path(args)+'/logs')
-    if args.hyperprior:
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' -V train --train_path '+full_model_path(args)+'/logs --train_glob "'+dataset_path(args)+'/*.'+args.extension+'" --num_scales '+str(args.num_scales)+' --scale_min '+str(args.scale_min)+' --scale_max '+str(args.scale_max)+' --epochs '+str(args.epochs)+' --bands '+bands+' --width '+width+' --height '+height+' --endianess '+endianess+' --lambda '+list_command(args.lmbda)+' --patchsize '+str(args.patchsize)+' --batchsize '+str(args.batchsize)+' --num_filters '+list_command(args.num_filters)+' --num_filters_1D '+str(args.num_filters_1D)+' --learning_rate '+str(args.learning_rate)+' --steps_per_epoch '+str(args.steps_per_epoch))
-    else:
-        os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' -V train --train_path '+full_model_path(args)+'/logs --train_glob "'+dataset_path(args)+'/*.'+args.extension+'" --epochs '+str(args.epochs)+' --bands '+bands+' --width '+width+' --height '+height+' --endianess '+endianess+' --lambda '+list_command(args.lmbda)+' --patchsize '+str(args.patchsize)+' --batchsize '+str(args.batchsize)+' --num_filters '+list_command(args.num_filters)+' --num_filters_1D '+str(args.num_filters_1D)+' --learning_rate '+str(args.learning_rate)+' --steps_per_epoch '+str(args.steps_per_epoch))
+    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' -V train --train_path '+full_model_path(args)+'/logs --train_glob "'+dataset_p+'/*.raw" --num_scales '+str(args.num_scales)+' --scale_min '+str(args.scale_min)+' --scale_max '+str(args.scale_max)+' --epochs '+str(args.epochs)+' --bands '+str(args.input_bands)+' --width '+width+' --height '+height+' --endianess '+endianess+' --lambda '+list_command(args.lmbda)+' --patchsize '+str(args.patchsize)+' --batchsize '+str(args.batchsize)+' --num_filters '+list_command(args.num_filters)+' --learning_rate '+str(args.learning_rate)+' --steps_per_epoch '+str(args.steps_per_epoch))
     print('Training ended on '+time.asctime(time.localtime()))
     if not args.autotest == None:
-        print('Running automatic testing of model on '+args.autotest[0]+' dataset')
-        test(args, dataset=args.autotest[0])
+        print('Running automatic testing of model on '+args.autotest+' dataset')
+        test(args, dataset=args.autotest)
         print('Testing ended on '+time.asctime(time.localtime()))
     
 def test(args,dataset=None):
@@ -144,6 +136,15 @@ def test(args,dataset=None):
     time.sleep(args.delay)
     if dataset==None:
         dataset=args.dataset
+        
+    bands, width, height, endianess, datatype = get_geometry_dataset('../datasets/'+dataset)
+    if int(bands) > args.input_bands:
+        print('Auxiliary test set needed')
+        dataset = dataset+'_aux'
+        if not os.path.isdir(dataset+'_aux'):
+            print('Generating auxiliary test set')
+            os.system('python3 ./auxiliary/bands_extractor.py --source '+dataset+' --destination '+dataset+'_aux --consecutive_bands '+str(args.input_bands))
+    
     try:
     	corpus = random.sample(os.listdir('../datasets/'+dataset),args.sample)
     except:
@@ -161,12 +162,11 @@ def test(args,dataset=None):
     except:
         pass
     results.write ('\n')
-    bands, width, height, endianess, datatype = get_geometry_dataset('../datasets/'+dataset)
     
     print('Compressing...')
-    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+dataset+'/*.'+args.extension+'"')
+    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' compress "'+'../datasets/'+dataset+'/*.raw"')
     print('Decompressing...')
-    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' decompress "'+'../datasets/'+dataset+'/*.'+args.extension+'.tfci"')
+    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' decompress "'+'../datasets/'+dataset+'/*.raw.tfci"')
 
         
     if datatype == '0':
@@ -195,12 +195,12 @@ def test(args,dataset=None):
         maxval = None
         
     sanity_check = random.choice(corpus)
-    while not os.path.splitext(sanity_check)[1] == '.raw' and args.extension=='raw':
+    while not os.path.splitext(sanity_check)[1] == '.raw':
         sanity_check = random.choice(corpus)
     
     for IMAGE in corpus:
         print('Testing image '+IMAGE)
-        if os.path.splitext(IMAGE)[1] == '.raw' and args.extension == 'raw':
+        if os.path.splitext(IMAGE)[1] == '.raw':
             bands, width, height, endianess, datatype = get_geometry_file(IMAGE)
             path_to_image = '../datasets/'+dataset+'/'+IMAGE
             results.write(IMAGE+',')
@@ -247,17 +247,17 @@ def parse_args(argv):
 
   # High-level options.
   parser.add_argument(
-      "--hyperprior", "-H", action="store_true",
-      help="This is a hyperprior model and the train command will include the scales parameters.")
-  parser.add_argument(
       "--model_path", default="test_model",
       help="Code under which to save/load the trained model. This will be in a predefined directory.")
   parser.add_argument(
-      "--architecture", default="CSFL2022012501",
+      "--architecture", default="hyperprior-adaptive",
       help="Baseline architecture to be trained or tested. Just use the code.")
   parser.add_argument(
-      "--extension", default="raw",
-      help="Extension of the data the network processes.")
+      "--input_bands", type=int, default=1,
+      help="Number of input bands to be taken in by the model. If the number of"
+      "bands in the dataset images is larger, an auxiliary training/testing"
+      "dataset will be created slicing the images into clusters of k bands, where"
+      "k is the value of this parameter.")
   parser.add_argument(
       "--delay", type=int, default=0,
       help="Time delay (in seconds) for the code to run. Only integer times.")
@@ -297,9 +297,6 @@ def parse_args(argv):
       "In non-slimmable architectures, two inputs may indicate (1) number of filters in hidden layers and (2) number of filters in latent layers."
       "Read the specifications of each architecture.")
   train_cmd.add_argument(
-      "--num_filters_1D", type=int, default=4,
-      help="Number of filters in the 1D layer, if any.")
-  train_cmd.add_argument(
       "--patchsize", type=int, default=256,
       help="Size of image patches for training and validation.")
   train_cmd.add_argument(
@@ -318,15 +315,15 @@ def parse_args(argv):
       help="Float indicating the learning rate for training.")
   train_cmd.add_argument(
       "--num_scales", type=int, default=64, dest="num_scales",
-      help="Only for hyperprior models. Number of Gaussian scales to prepare range coding tables for.")
+      help="Number of Gaussian scales to prepare range coding tables for.")
   train_cmd.add_argument(
       "--scale_min", type=float, default=0.11, dest="scale_min",
-      help="Only for hyperprior models. Minimum value of standard deviation of Gaussians.")
+      help="Minimum value of standard deviation of Gaussians.")
   train_cmd.add_argument(
       "--scale_max", type=float, default=256.0, dest="scale_max",
-      help="Only for hyperprior models. Maximum value of standard deviation of Gaussians.")
+      help="Maximum value of standard deviation of Gaussians.")
   train_cmd.add_argument(
-      "--autotest", nargs='+', default= None,
+      "--autotest", default=None,
       help="Run testing automatically at the end of training. It will use the dataset "
       "indicated in this option.")
 
