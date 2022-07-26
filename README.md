@@ -32,7 +32,9 @@ parent
 
 The following command is an example of a test of a model:
 
-```python3 MAIN.py --input_bands 1 --model_path AVIRIS_1band_2 test --dataset AVIRIS_test```
+```
+python3 MAIN.py --input_bands 1 --model_path AVIRIS_1band_2 test --dataset AVIRIS_test
+```
 
 Note the architecture script used by default is the one discussed in the paper. This will produce a results .csv file in the models/AVIRIS_1band_2 directory, as well as .png visualisations of a randomly sampled image (one band) and its reconstruction to perform a sanity check.
 
@@ -51,7 +53,9 @@ parent
 
 For example you may train a model as:
 
-```python3 MAIN.py --input_bands 1 --model_path my-model test --dataset AVIRIS_training --epochs 100 --steps_per_epoch 1000 --lambda 0.0001 --num_filters 64 384 --patchsize 256```
+```
+python3 MAIN.py --input_bands 1 --model_path my-model test --dataset AVIRIS_training --epochs 100 --steps_per_epoch 1000 --lambda 0.0001 --num_filters 64 384 --patchsize 256
+```
 
 This will train a model for single bands of the images in `datasets/AVIRIS_training` for 100 epochs of 1.000 steps each using 64 filters in the hidden layers and 384 filters in the latent space on 256x256 spatial patches. Observe that, if the input images have more bands than indicated in `--input_bands` a new auxiliary dataset will be created for training purposes where the images are sliced into clusters of `--input_bands` bands each, and the models will be trained among these. The model will be stored in `models/my-model` together with training logs, which you can view using [Tensorboard](https://www.tensorflow.org/tensorboard).
 
