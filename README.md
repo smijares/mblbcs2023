@@ -39,6 +39,27 @@ python3 MAIN.py --input_bands 1 --model_path AVIRIS_1band_2 test --dataset AVIRI
 Note the architecture script used by default is the one discussed in the paper. This will produce a results .csv file in the models/AVIRIS_1band_2 directory, as well as .png visualisations of a randomly sampled image (one band) and its reconstruction to perform a sanity check.
 
 Observe that, if the input images have more bands than indicated in `--input_bands` a new auxiliary dataset will be created for testing purposes where the images are sliced into clusters of `--input_bands` bands each, and the models will be tested among these.
+
+### What if I only want to compress/decompress some images?
+
+To compress/decompress an image (or selection of images) specifically, you'll need to use the `bands_extractor.py` auxiliary script and the architecure script directly. First, use the `bands_extractor.py` script to extract the band clusters you need from a set in `../datasets`:
+
+```
+python3 ./auxiliary/bands_extractor.py --source AVIRIS_test --destination AVIRIS_test_3bands --consecutive_bands 3
+```
+
+Then, we can use the architecture script to compress the image we're interested in. We can easily use a glob pattern to identify solely the bands clusters with a given name, such as in the following example:
+
+```
+python3 ./hyperprior_adaptive.py --model_path ../models/AVIRIS_3bands_2 compress "../datasets/AVIRIS_test_3bands/f080806t01p00r07*.raw"
+```
+
+We can then decompress these images using the following command:
+
+```
+python3 ./hyperprior_adaptive.py --model_path ../models/AVIRIS_3bands_2 decompress "../datasets/AVIRIS_test_3bands/f080806t01p00r07*.raw.tfci"
+```
+
 ## How to train a model from scratch
 As described before, use the MAIN.py script with the following directory structure.
 
