@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 mblbcs2022 main script
-V1.0
+V1.1
 Sebastià Mijares i Verdú - GICI, UAB
 sebastia.mijares@uab.cat
 
@@ -118,7 +118,7 @@ def run_training(args):
         dataset_p = dataset_path(args)+'_aux'
         if not os.path.isdir(dataset_path(args)+'_aux'):
             print('Generating auxiliary training set')
-            os.system('python3 ./auxiliary/bands_extractor.py --source '+dataset_path(args)+' --destination '+dataset_path(args)+'_aux --consecutive_bands '+str(args.input_bands))
+            os.system('python3 ./auxiliary/bands_extractor.py --source '+args.dataset+' --destination '+args.dataset+'_aux --consecutive_bands '+str(args.input_bands))
     else:
         dataset_p = dataset_path(args)
     if not os.path.isdir(full_model_path(args)):
