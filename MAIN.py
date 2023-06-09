@@ -6,7 +6,7 @@ V2.0
 Sebastià Mijares i Verdú - GICI, UAB
 sebastia.mijares@uab.cat
 
-Core script to replicate the results described in the "calable Reduced-Complexity
+Core script to replicate the results described in the "Scalable Reduced-Complexity
 Compression of Hyperspectral Remote Sensing Images using Deep Learning" paper by
 Sebastià Mijares i Verdú, Valero Laparra, Johannes Ballé, Joan Bartrina-Rapesta,
 Miguel Hernández-Cabronero, and Joan Serra-Sagristà, submitted for publication

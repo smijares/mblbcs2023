@@ -7,11 +7,11 @@ Sebastià Mijares i Verdú - GICI, UAB
 sebastia.mijares@uab.cat
 
 This script is to train and run neural-network codecs using the architecture
-described in the "Multiband deep learning models for hyperspectral remote sensing
-images compression" paper by Sebastià Mijares i Verdú, Valero Laparra, Johannes
-Ballé, Joan Bartrina-Rapesta, Miguel Hernández-Cabronero, and Joan Serra-Sagristà,
-submitted for publication in the IEEE Geoscience and Remote Sensing Letters journal
-in July 2022. Use option -h to get help on how to run this script.
+described in the "Scalable Reduced-Complexity Compression of Hyperspectral
+Remote Sensing Images using Deep Learning" paper by Sebastià Mijares i Verdú,
+Valero Laparra, Johannes Ballé, Joan Bartrina-Rapesta, Miguel Hernández-
+Cabronero, and Joan Serra-Sagristà, submitted for publication in the MDPI Remote
+Sensing journal in June 2023 Use option -h to get help on how to run this script.
 
 Required libraries
 ------------------
