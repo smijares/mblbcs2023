@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-mblbcs2022 main script
-V1.1
+mblbcs2023 main script
+V2.0
 Sebastià Mijares i Verdú - GICI, UAB
 sebastia.mijares@uab.cat
 
-Core script to replicate the results described in the "Multiband deep learning
-models for hyperspectral remote sensing images compression" paper by Sebastià
-Mijares i Verdú, Valero Laparra, Johannes Ballé, Joan Bartrina-Rapesta, Miguel
-Hernández-Cabronero, and Joan Serra-Sagristà, submitted for publication in the
-IEEE Geoscience and Remote Sensing Letters journal in July 2022.
+Core script to replicate the results described in the "calable Reduced-Complexity
+Compression of Hyperspectral Remote Sensing Images using Deep Learning" paper by
+Sebastià Mijares i Verdú, Valero Laparra, Johannes Ballé, Joan Bartrina-Rapesta,
+Miguel Hernández-Cabronero, and Joan Serra-Sagristà, submitted for publication
+in the MDPI Remote Sensing journal in June 2023.
 
 This script automates processes to be run by the architecture script to train
 new models or test existing ones. Run 'python3 MAIN.py -h' for help on how to
@@ -111,24 +111,72 @@ def list_command(L):
 def run_training(args):
     print('Delaying for '+str(args.delay)+' seconds...')
     time.sleep(args.delay)
+    
+    if args.KLT:
+        print('KLT requested')
+        new_dataset = args.dataset+'_KLT'
+        if not os.path.isdir('../datasets/'+args.dataset+'_KLT'):
+            print('KLT-transformed dataset not found. Applying KLT to dataset...')
+            os.mkdir('../datasets/'+new_dataset)
+            os.mkdir('../datasets/'+new_dataset+'_sideinfo')
+            corpus = os.listdir('../datasets/'+args.dataset)
+            bands, width, height, endianess, datatype = get_geometry_dataset('../datasets/'+args.dataset)
+            for IMAGE in corpus:
+                os.system('java -Xmx4096m -jar ../rklt/dist/rklt.jar -i "../datasets/'+args.dataset+'/'+IMAGE+'" -ig '+bands+' '+height+' '+width+' '+datatype+' '+endianess+' -o "../datasets/'+new_dataset+'/'+IMAGE.split('.')[0]+'.'+bands+'_'+width+'_'+height+'_4_'+endianess+'_0.raw" -og '+bands+' '+height+' '+width+' 4 '+endianess+' -D 0 -d 0 -ti "../datasets/'+new_dataset+'_sideinfo/'+IMAGE.split('.')[0]+'.'+bands+'_'+width+'_'+height+'_4_'+endianess+'_0-side_info.file"')
+    
     bands, width, height, endianess, datatype = get_geometry_dataset(dataset_path(args))
     
     if int(bands) > args.input_bands:
         print('Auxiliary training set needed')
         dataset_p = dataset_path(args)+'_aux'
-        if not os.path.isdir(dataset_path(args)+'_aux'):
-            print('Generating auxiliary training set')
-            os.system('python3 ./auxiliary/bands_extractor.py --source '+args.dataset+' --destination '+args.dataset+'_aux --consecutive_bands '+str(args.input_bands))
+        if args.KLT:
+            dataset_p = dataset_path(args)+'_KLT_aux'
+        if not os.path.isdir(dataset_p):
+            print('Generating auxiliary training set...')
+            os.system('python3 ./auxiliary/bands_extractor.py --source '+args.dataset+' --destination '+dataset_p+' --consecutive_bands '+str(args.input_bands)+' extract')
     else:
         dataset_p = dataset_path(args)
+        if args.KLT:
+            dataset_p = dataset_path(args)+'_KLT'
+    
     if not os.path.isdir(full_model_path(args)):
         os.mkdir(full_model_path(args))
         os.mkdir(full_model_path(args)+'/logs')
-    os.system('python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' -V train --train_path '+full_model_path(args)+'/logs --train_glob "'+dataset_p+'/*.raw" --num_scales '+str(args.num_scales)+' --scale_min '+str(args.scale_min)+' --scale_max '+str(args.scale_max)+' --epochs '+str(args.epochs)+' --bands '+str(args.input_bands)+' --width '+width+' --height '+height+' --endianess '+endianess+' --lambda '+list_command(args.lmbda)+' --patchsize '+str(args.patchsize)+' --batchsize '+str(args.batchsize)+' --num_filters '+list_command(args.num_filters)+' --learning_rate '+str(args.learning_rate)+' --steps_per_epoch '+str(args.steps_per_epoch))
+        
+    #Run training command
+    print('Starting training...')
+    command = 'python3 '+baseline_path(args)+' --model_path '+full_model_path(args)+' -V train --train_path '+full_model_path(args)+'/logs --train_glob "'+dataset_p+'/*.'+args.extension+'" --epochs '+str(args.epochs)+' --bands '+str(args.input_bands)+' --width '+width+' --height '+height+' --endianess '+endianess+' --patchsize '+str(args.patchsize)+' --batchsize '+str(args.batchsize)+' --steps_per_epoch '+str(args.steps_per_epoch)
+    if args.hyperprior:
+        command += ' --num_scales '+str(args.num_scales)+' --scale_min '+str(args.scale_min)+' --scale_max '+str(args.scale_max)
+    if args.learning_rate:
+        command += ' --learning_rate '+str(args.learning_rate)
+    if args.num_filters:
+        command += ' --num_filters '+list_command(args.num_filters)
+    if args.lmbda:
+        command += ' --lambda '+list_command(args.lmbda)    
+    os.system(command)
+    
+    #Post-training
     print('Training ended on '+time.asctime(time.localtime()))
     if not args.autotest == None:
-        print('Running automatic testing of model on '+args.autotest+' dataset')
-        test(args, dataset=args.autotest)
+        print('Running automatic testing of model on '+args.autotest[0]+' dataset')
+        if len(args.autotest)>1:
+            for i in args.autotest[1:]:
+                test(args, dataset=args.autotest[0], qual=i)
+            full_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_results.csv','w')
+            lines = []
+            for qual in args.autotest[1:]:
+                partial_results = open(full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_qual-'+str(qual)+'_results.csv','r')
+                if qual == args.autotest[1:][1]:
+                    lines += partial_results.readlines()
+                else:
+                    lines += partial_results.readlines()[1:]
+                os.system('rm '+full_model_path(args)+'/'+args.model_path+'_'+args.autotest[0]+'_qual-'+str(qual)+'_results.csv')
+            for line in lines:
+                full_results.write(line)
+            full_results.close()
+        else:
+            test(args, dataset=args.autotest[0])
         print('Testing ended on '+time.asctime(time.localtime()))
     
 def test(args,dataset=None):
@@ -286,13 +334,13 @@ def parse_args(argv):
                   "set is simply a random sampling of patches from the "
                   "training set.")
   train_cmd.add_argument(
-      "--lambda", type=float, nargs='+', default=[0.01], dest="lmbda",
+      "--lambda", type=float, nargs='+', dest="lmbda",
       help="Lambda for rate-distortion tradeoff.")
   train_cmd.add_argument(
       "--dataset", type=str, default="",
       help="Name of the training dataset. Will be searched as a directory with the same name under ../datasets.")
   train_cmd.add_argument(
-      "--num_filters", type=int, nargs='+', default=[128],
+      "--num_filters", type=int, nargs='+', 
       help="Number of filters per 2D convolutional layer. If more than one input is specified, it will place them in the same order."
       "In non-slimmable architectures, two inputs may indicate (1) number of filters in hidden layers and (2) number of filters in latent layers."
       "Read the specifications of each architecture.")
@@ -311,7 +359,7 @@ def parse_args(argv):
       "--steps_per_epoch", type=int, default=1000,
       help="Perform validation and produce logs after this many batches.")
   train_cmd.add_argument(
-      "--learning_rate", type=float, default=0.0001, dest="learning_rate",
+      "--learning_rate", type=float, dest="learning_rate",
       help="Float indicating the learning rate for training.")
   train_cmd.add_argument(
       "--num_scales", type=int, default=64, dest="num_scales",
@@ -326,6 +374,10 @@ def parse_args(argv):
       "--autotest", default=None,
       help="Run testing automatically at the end of training. It will use the dataset "
       "indicated in this option.")
+  train_cmd.add_argument(
+      "--KLT", action="store_true",
+      help="Applies KLT to all images. Side information is stored in a sepparate repository. If an auxiliary test set would be generated, it is generated after the KLT is applied.")
+
 
     # 'test' subcommand.
   test_cmd = subparsers.add_parser(
